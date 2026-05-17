@@ -133,8 +133,19 @@ export async function editUserAsAdmin({
   if (cleanEmail !== undefined && !cleanEmail) {
     throw new AppError("Email boş ola bilməz", 400)
   }
-  if (statusValue !== undefined && !["active", "inactive", "blocked", "pending"].includes(statusValue)) {
+
+  const allowedStatuses = new Set(["active", "inactive", "blocked", "pending"])
+  if (statusValue !== undefined && !allowedStatuses.has(statusValue)) {
     throw new AppError("Status dəyəri yanlışdır", 400)
+  }
+
+  if (
+    name === undefined &&
+    roleValue === undefined &&
+    statusValue === undefined &&
+    cleanEmail === undefined
+  ) {
+    throw new AppError("Yenilənəcək sahə göndərin", 400)
   }
 
   const supabaseAdmin = getSupabaseAdmin()
@@ -144,20 +155,23 @@ export async function editUserAsAdmin({
     throw new AppError("İstifadəçi tapılmadı", 404)
   }
 
+  let nextAuthUser = authData.user
   if (cleanEmail !== undefined || name !== undefined) {
-    const updatePayload = {}
-    if (cleanEmail !== undefined) updatePayload.email = cleanEmail
+    const authUpdatePayload = {}
+    if (cleanEmail !== undefined) authUpdatePayload.email = cleanEmail
     if (name !== undefined) {
-      updatePayload.user_metadata = {
+      authUpdatePayload.user_metadata = {
         ...(authData.user.user_metadata ?? {}),
         full_name: name,
       }
     }
 
-    const { error: authUpdateErr } = await supabaseAdmin.auth.admin.updateUserById(target, updatePayload)
-    if (authUpdateErr) {
-      throw new AppError(authUpdateErr.message || "Auth məlumatı yenilənmədi", 400)
+    const { data: updatedAuth, error: authUpdateErr } =
+      await supabaseAdmin.auth.admin.updateUserById(target, authUpdatePayload)
+    if (authUpdateErr || !updatedAuth?.user) {
+      throw new AppError(authUpdateErr?.message || "Auth məlumatı yenilənmədi", 400)
     }
+    nextAuthUser = updatedAuth.user
   }
 
   const profileUpdate = {}
@@ -171,8 +185,9 @@ export async function editUserAsAdmin({
       .from("profiles")
       .update(profileUpdate)
       .eq("id", target)
-      .select()
+      .select("*")
       .maybeSingle()
+
     if (error || !data) {
       throw new AppError("Profil yenilənmədi", 400)
     }
@@ -189,12 +204,12 @@ export async function editUserAsAdmin({
     profile = data
   }
 
-  const { data: finalAuth } = await supabaseAdmin.auth.admin.getUserById(target)
   return {
-    user: toPublicUser(finalAuth?.user ?? authData.user),
+    user: toPublicUser(nextAuthUser),
     profile,
   }
 }
+
 
 
 /**

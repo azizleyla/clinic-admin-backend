@@ -13,7 +13,7 @@ import {
 
 export async function editUser(req, res) {
   try {
-    const { email, full_name, role, password } = req.body
+    const { email, full_name, role, status } = req.body ?? {}
     const targetUserId = req.params.id
     const actorUserId = req.auth?.user?.id
     const result = await editUserAsAdmin({
@@ -22,7 +22,7 @@ export async function editUser(req, res) {
       email,
       full_name,
       role,
-      status: req.body?.status,
+      status,
     })
     AppSuccess.send(res, 200, result, {
       message: "İstifadəçi uğurla redaktə edildi",
