@@ -1,7 +1,7 @@
 import express from "express"
 import multer from "multer"
 import { requireAuth } from "../../middleware/requireAuth.js"
-import { createBlog, createBlogJson, deleteBlog, editBlog, getBlogs } from "./blogs.controller.js"
+import { createBlog, deleteBlog, editBlog, getBlogById, getBlogs } from "./blogs.controller.js"
 
 const router = express.Router()
 
@@ -20,8 +20,8 @@ const upload = multer({
   },
 })
 
-router.get("/", requireAuth, getBlogs)
-router.post("/add-json", requireAuth, createBlogJson)
+router.get("/", getBlogs)
+router.get("/:id", getBlogById)
 router.post("/add", requireAuth, upload.single("image"), createBlog)
 router.put("/edit/:id", requireAuth, upload.single("image"), editBlog)
 router.delete("/delete/:id", requireAuth, deleteBlog)

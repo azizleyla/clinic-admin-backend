@@ -26,12 +26,13 @@ export class AppSuccess {
    * @param {import("express").Response} res
    * @param {number} status — HTTP status (res.status ilə eyni)
    * @param {unknown} data
-   * @param {{ meta?: Record<string, unknown>, message?: string }} [options]
+   * @param {{ meta?: Record<string, unknown>, message?: string, fields?: Record<string, unknown> }} [options]
    */
   static send(res, status, data, options = {}) {
     const body = { success: true, status, data }
     if (options.message !== undefined) body.message = options.message
     if (options.meta !== undefined) body.meta = options.meta
+    if (options.fields) Object.assign(body, options.fields)
     res.status(status).json(body)
   }
 }

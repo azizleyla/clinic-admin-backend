@@ -1,13 +1,97 @@
 import { AppError } from "../../common/AppError.js";
 import getSupabaseAdmin from "../../config/supabaseAdmin.js";
 
-export async function getBlogsService() {
+const DEFAULT_PAGE = 1;
+const DEFAULT_LIMIT = 10;
+const MAX_LIMIT = 100;
+
+function parsePositiveInt(value, fallback) {
+  const n = parseInt(String(value ?? ""), 10);
+  if (!Number.isFinite(n) || n < 1) return fallback;
+  return n;
+}
+
+
+export function parseBlogsListQuery(query = {}) {
+  const hasPage = query.page != null && String(query.page).trim() !== "";
+  const hasLimit = query.limit != null && String(query.limit).trim() !== "";
+
+  if (!hasPage && !hasLimit) {
+    return { paginate: false };
+  }
+
+  const limit = Math.min(parsePositiveInt(query.limit, DEFAULT_LIMIT), MAX_LIMIT);
+  const page = hasPage ? parsePositiveInt(query.page, DEFAULT_PAGE) : DEFAULT_PAGE;
+
+  return { paginate: true, page, limit };
+}
+
+export async function getBlogsService({ page, limit, paginate } = {}) {
   const supabaseAdmin = getSupabaseAdmin();
-  const { data: blogs, error } = await supabaseAdmin.from("blogs").select("*");
+
+  let q = supabaseAdmin
+    .from("blogs")
+    .select("*", { count: paginate ? "exact" : undefined })
+    .order("published_at", { ascending: false, nullsFirst: false })
+    .order("created_at", { ascending: false });
+
+  if (paginate) {
+    const from = (page - 1) * limit;
+    const to = from + limit - 1;
+    q = q.range(from, to);
+  }
+
+  const { data: blogs, error, count } = await q;
+
   if (error) {
     throw new AppError(error.message || "Bloq siyahısı alına bilmədi", 500);
   }
-  return blogs ?? [];
+
+  const items = blogs ?? [];
+
+  const totalElements = paginate ? (count ?? 0) : items.length;
+
+  if (!paginate) {
+    return {
+      items,
+      fields: { totalElements },
+    };
+  }
+
+  const totalPages = totalElements === 0 ? 0 : Math.ceil(totalElements / limit);
+
+  return {
+    items,
+    fields: {
+      currentPage: page,
+      totalElements,
+      totalPages,
+      hasNextPage: page < totalPages,
+    },
+  };
+}
+
+export async function getBlogByIdService(id) {
+  const supabaseAdmin = getSupabaseAdmin();
+  const blogId = Number(id);
+  if (!Number.isFinite(blogId)) {
+    throw new AppError("Blog id düzgün deyil", 400);
+  }
+
+  const { data: blog, error } = await supabaseAdmin
+    .from("blogs")
+    .select("*")
+    .eq("id", blogId)
+    .maybeSingle();
+
+  if (error) {
+    throw new AppError(error.message || "Bloq tapıla bilmədi", 500);
+  }
+  if (!blog) {
+    throw new AppError("Bloq tapılmadı", 404);
+  }
+
+  return blog;
 }
 
 function parseMaybeJson(value) {
