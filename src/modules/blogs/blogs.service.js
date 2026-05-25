@@ -11,7 +11,6 @@ function parsePositiveInt(value, fallback) {
   return n;
 }
 
-
 export function parseBlogsListQuery(query = {}) {
   const hasPage = query.page != null && String(query.page).trim() !== "";
   const hasLimit = query.limit != null && String(query.limit).trim() !== "";
@@ -20,8 +19,13 @@ export function parseBlogsListQuery(query = {}) {
     return { paginate: false };
   }
 
-  const limit = Math.min(parsePositiveInt(query.limit, DEFAULT_LIMIT), MAX_LIMIT);
-  const page = hasPage ? parsePositiveInt(query.page, DEFAULT_PAGE) : DEFAULT_PAGE;
+  const limit = Math.min(
+    parsePositiveInt(query.limit, DEFAULT_LIMIT),
+    MAX_LIMIT,
+  );
+  const page = hasPage
+    ? parsePositiveInt(query.page, DEFAULT_PAGE)
+    : DEFAULT_PAGE;
 
   return { paginate: true, page, limit };
 }
@@ -54,20 +58,18 @@ export async function getBlogsService({ page, limit, paginate } = {}) {
   if (!paginate) {
     return {
       items,
-      fields: { totalElements },
+      totalElements,
     };
   }
 
   const totalPages = totalElements === 0 ? 0 : Math.ceil(totalElements / limit);
-
+  console.log(blogs, "b");
   return {
     items,
-    fields: {
-      currentPage: page,
-      totalElements,
-      totalPages,
-      hasNextPage: page < totalPages,
-    },
+    currentPage: page,
+    totalElements,
+    totalPages,
+    hasNextPage: page < totalPages,
   };
 }
 
@@ -141,7 +143,9 @@ async function ensureUniqueSlug(supabaseAdmin, baseSlug, excludeId = null) {
 
 function getFileExtension(fileName, mimeType) {
   const name = String(fileName ?? "");
-  const fromName = name.includes(".") ? name.split(".").pop()?.toLowerCase() : "";
+  const fromName = name.includes(".")
+    ? name.split(".").pop()?.toLowerCase()
+    : "";
   if (fromName) return fromName;
 
   const mime = String(mimeType ?? "").toLowerCase();
@@ -167,7 +171,12 @@ function extractStoragePathFromPublicUrl(publicUrl, bucketName) {
   return path ? decodeURIComponent(path) : null;
 }
 
-function resolveImagePayload(imageFile, imageBuffer, imageMime, imageOriginalName) {
+function resolveImagePayload(
+  imageFile,
+  imageBuffer,
+  imageMime,
+  imageOriginalName,
+) {
   if (imageFile?.buffer) {
     return {
       buffer: imageFile.buffer,
@@ -179,7 +188,9 @@ function resolveImagePayload(imageFile, imageBuffer, imageMime, imageOriginalNam
     return {
       buffer: imageBuffer,
       mimetype: String(imageMime),
-      originalname: imageOriginalName ? String(imageOriginalName) : "upload.jpg",
+      originalname: imageOriginalName
+        ? String(imageOriginalName)
+        : "upload.jpg",
     };
   }
   return null;
@@ -203,9 +214,17 @@ export async function createBlogService({
   if (!title) {
     throw new AppError("Başlıq (title) tələb olunur", 400);
   }
-  const resolvedImage = resolveImagePayload(imageFile, imageBuffer, imageMime, imageOriginalName);
+  const resolvedImage = resolveImagePayload(
+    imageFile,
+    imageBuffer,
+    imageMime,
+    imageOriginalName,
+  );
   if (!resolvedImage?.buffer?.length) {
-    throw new AppError("Şəkil tələb olunur (multipart file və ya JSON-da image_base64)", 400);
+    throw new AppError(
+      "Şəkil tələb olunur (multipart file və ya JSON-da image_base64)",
+      400,
+    );
   }
   if (!String(resolvedImage.mimetype).startsWith("image/")) {
     throw new AppError("Yalnız şəkil faylı qəbul olunur", 400);
@@ -218,10 +237,15 @@ export async function createBlogService({
 
   const parsedSlug = parseMaybeJson(slugInput);
   const titleForFallback =
-    typeof parsedTitle === "string" ? parsedTitle : parsedTitle?.az ?? parsedTitle?.en ?? "";
+    typeof parsedTitle === "string"
+      ? parsedTitle
+      : (parsedTitle?.az ?? parsedTitle?.en ?? "");
   const slugBase = generateSlug(parsedSlug || titleForFallback);
   if (!slugBase) {
-    throw new AppError("Slug tələb olunur və ya title-dan yaradıla bilməlidir", 400);
+    throw new AppError(
+      "Slug tələb olunur və ya title-dan yaradıla bilməlidir",
+      400,
+    );
   }
   const uniqueSlug = await ensureUniqueSlug(supabaseAdmin, slugBase);
 
@@ -232,7 +256,10 @@ export async function createBlogService({
       .trim()
       .replace(/^\/+|\/+$/g, "");
   }
-  const ext = getFileExtension(resolvedImage.originalname, resolvedImage.mimetype);
+  const ext = getFileExtension(
+    resolvedImage.originalname,
+    resolvedImage.mimetype,
+  );
   const fileName = `${uniqueSlug}-${Date.now()}.${ext}`;
   const filePath = pathPrefix ? `${pathPrefix}/${fileName}` : fileName;
 
@@ -244,7 +271,10 @@ export async function createBlogService({
     });
 
   if (uploadError) {
-    throw new AppError(uploadError.message || "Şəkil storage-ə yüklənmədi", 500);
+    throw new AppError(
+      uploadError.message || "Şəkil storage-ə yüklənmədi",
+      500,
+    );
   }
 
   const {
@@ -258,7 +288,10 @@ export async function createBlogService({
     tags: parsedTags,
     slug: uniqueSlug,
     img_url: publicUrl,
-    category_id: category_id != null && String(category_id).trim() !== "" ? Number(category_id) : null,
+    category_id:
+      category_id != null && String(category_id).trim() !== ""
+        ? Number(category_id)
+        : null,
     published_at: published_at ? new Date(published_at).toISOString() : null,
   };
 
@@ -321,15 +354,25 @@ export async function editBlogService(
 
   const parsedSlug = parseMaybeJson(slugInput);
   const titleForFallback =
-    typeof parsedTitle === "string" ? parsedTitle : parsedTitle?.az ?? parsedTitle?.en ?? "";
+    typeof parsedTitle === "string"
+      ? parsedTitle
+      : (parsedTitle?.az ?? parsedTitle?.en ?? "");
   const slugBase = generateSlug(parsedSlug || titleForFallback);
   if (!slugBase) {
-    throw new AppError("Slug tələb olunur və ya title-dan yaradıla bilməlidir", 400);
+    throw new AppError(
+      "Slug tələb olunur və ya title-dan yaradıla bilməlidir",
+      400,
+    );
   }
   const uniqueSlug = await ensureUniqueSlug(supabaseAdmin, slugBase, blogId);
 
   let imgUrl = existing.img_url;
-  const resolvedImage = resolveImagePayload(imageFile, imageBuffer, imageMime, imageOriginalName);
+  const resolvedImage = resolveImagePayload(
+    imageFile,
+    imageBuffer,
+    imageMime,
+    imageOriginalName,
+  );
 
   if (resolvedImage?.buffer?.length) {
     if (!String(resolvedImage.mimetype).startsWith("image/")) {
@@ -343,7 +386,10 @@ export async function editBlogService(
         .trim()
         .replace(/^\/+|\/+$/g, "");
     }
-    const ext = getFileExtension(resolvedImage.originalname, resolvedImage.mimetype);
+    const ext = getFileExtension(
+      resolvedImage.originalname,
+      resolvedImage.mimetype,
+    );
     const fileName = `${uniqueSlug}-${Date.now()}.${ext}`;
     const filePath = pathPrefix ? `${pathPrefix}/${fileName}` : fileName;
 
@@ -355,7 +401,10 @@ export async function editBlogService(
       });
 
     if (uploadError) {
-      throw new AppError(uploadError.message || "Şəkil storage-ə yüklənmədi", 500);
+      throw new AppError(
+        uploadError.message || "Şəkil storage-ə yüklənmədi",
+        500,
+      );
     }
 
     const {
@@ -372,7 +421,9 @@ export async function editBlogService(
     slug: uniqueSlug,
     img_url: imgUrl,
     category_id:
-      category_id != null && String(category_id).trim() !== "" ? Number(category_id) : null,
+      category_id != null && String(category_id).trim() !== ""
+        ? Number(category_id)
+        : null,
     published_at: published_at ? new Date(published_at).toISOString() : null,
   };
 
@@ -411,7 +462,10 @@ export async function deleteBlogService(id) {
   }
 
   const bucketName = getBlogsBucketName();
-  const storagePath = extractStoragePathFromPublicUrl(existing.img_url, bucketName);
+  const storagePath = extractStoragePathFromPublicUrl(
+    existing.img_url,
+    bucketName,
+  );
 
   if (storagePath) {
     const { error: storageError } = await supabaseAdmin.storage
@@ -419,11 +473,17 @@ export async function deleteBlogService(id) {
       .remove([storagePath]);
 
     if (storageError) {
-      throw new AppError(storageError.message || "Şəkil storage-dən silinə bilmədi", 500);
+      throw new AppError(
+        storageError.message || "Şəkil storage-dən silinə bilmədi",
+        500,
+      );
     }
   }
 
-  const { error: deleteError } = await supabaseAdmin.from("blogs").delete().eq("id", blogId);
+  const { error: deleteError } = await supabaseAdmin
+    .from("blogs")
+    .delete()
+    .eq("id", blogId);
 
   if (deleteError) {
     throw new AppError(deleteError.message || "Bloq silinə bilmədi", 500);
