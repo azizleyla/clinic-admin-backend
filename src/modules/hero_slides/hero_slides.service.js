@@ -149,7 +149,7 @@ async function removeSliderImage(supabaseAdmin, imageUrl) {
   }
 }
 
-export async function getHeroSlidesService({ is_active } = {}) {
+export async function getHeroSlidesService({ is_active, clinicId } = {}) {
   const supabaseAdmin = getSupabaseAdmin();
   const isActive = parseBoolean(is_active);
 
@@ -159,6 +159,9 @@ export async function getHeroSlidesService({ is_active } = {}) {
     .order("order_index", { ascending: true })
     .order("created_at", { ascending: false });
 
+  if (clinicId) {
+    q = q.eq("clinic_id", clinicId);
+  }
   if (isActive !== null) {
     q = q.eq("is_active", isActive);
   }
@@ -172,15 +175,16 @@ export async function getHeroSlidesService({ is_active } = {}) {
   return slides ?? [];
 }
 
-export async function getHeroSlideByIdService(id) {
+export async function getHeroSlideByIdService(id, clinicId) {
   const slideId = assertUuid(id);
   const supabaseAdmin = getSupabaseAdmin();
 
-  const { data: slide, error } = await supabaseAdmin
+  let query = supabaseAdmin
     .from("hero_slides")
     .select("*")
-    .eq("id", slideId)
-    .maybeSingle();
+    .eq("id", slideId);
+  if (clinicId) query = query.eq("clinic_id", clinicId);
+  const { data: slide, error } = await query.maybeSingle();
 
   if (error) {
     throw new AppError(error.message || "Slider tapıla bilmədi", 500);
@@ -200,6 +204,7 @@ export async function createHeroSlideService({
   imageBuffer,
   imageMime,
   imageOriginalName,
+  clinicId,
 }) {
   const supabaseAdmin = getSupabaseAdmin();
 
@@ -225,6 +230,7 @@ export async function createHeroSlideService({
     image_url: publicUrl,
     is_active: parsedIsActive === null ? true : parsedIsActive,
   };
+  if (clinicId) payload.clinic_id = clinicId;
 
   const { data: created, error } = await supabaseAdmin
     .from("hero_slides")
@@ -251,15 +257,17 @@ export async function editHeroSlideService(
     imageMime,
     imageOriginalName,
   },
+  clinicId,
 ) {
   const slideId = assertUuid(id);
   const supabaseAdmin = getSupabaseAdmin();
 
-  const { data: existing, error: fetchError } = await supabaseAdmin
+  let existingQuery = supabaseAdmin
     .from("hero_slides")
     .select("*")
-    .eq("id", slideId)
-    .maybeSingle();
+    .eq("id", slideId);
+  if (clinicId) existingQuery = existingQuery.eq("clinic_id", clinicId);
+  const { data: existing, error: fetchError } = await existingQuery.maybeSingle();
 
   if (fetchError) {
     throw new AppError(fetchError.message || "Slider tapıla bilmədi", 500);
@@ -293,12 +301,12 @@ export async function editHeroSlideService(
     updated_at: new Date().toISOString(),
   };
 
-  const { data: updated, error } = await supabaseAdmin
+  let updateQuery = supabaseAdmin
     .from("hero_slides")
     .update(payload)
-    .eq("id", slideId)
-    .select("*")
-    .single();
+    .eq("id", slideId);
+  if (clinicId) updateQuery = updateQuery.eq("clinic_id", clinicId);
+  const { data: updated, error } = await updateQuery.select("*").single();
 
   if (error) {
     if (resolvedImage?.buffer?.length) {
@@ -318,15 +326,16 @@ export async function editHeroSlideService(
   return updated;
 }
 
-export async function deleteHeroSlideService(id) {
+export async function deleteHeroSlideService(id, clinicId) {
   const slideId = assertUuid(id);
   const supabaseAdmin = getSupabaseAdmin();
 
-  const { data: existing, error: fetchError } = await supabaseAdmin
+  let existingQuery = supabaseAdmin
     .from("hero_slides")
     .select("id, image_url")
-    .eq("id", slideId)
-    .maybeSingle();
+    .eq("id", slideId);
+  if (clinicId) existingQuery = existingQuery.eq("clinic_id", clinicId);
+  const { data: existing, error: fetchError } = await existingQuery.maybeSingle();
 
   if (fetchError) {
     throw new AppError(fetchError.message || "Slider tapıla bilmədi", 500);
@@ -339,10 +348,12 @@ export async function deleteHeroSlideService(id) {
     await removeSliderImage(supabaseAdmin, existing.image_url);
   }
 
-  const { error: deleteError } = await supabaseAdmin
+  let deleteQuery = supabaseAdmin
     .from("hero_slides")
     .delete()
     .eq("id", slideId);
+  if (clinicId) deleteQuery = deleteQuery.eq("clinic_id", clinicId);
+  const { error: deleteError } = await deleteQuery;
 
   if (deleteError) {
     throw new AppError(deleteError.message || "Slider silinə bilmədi", 500);
@@ -355,7 +366,7 @@ export async function deleteHeroSlideService(id) {
  * Sliderləri yenidən sırala.
  * items: [{ id: uuid, order_index: number }, ...]
  */
-export async function reorderHeroSlidesService(items) {
+export async function reorderHeroSlidesService(items, clinicId) {
   if (!Array.isArray(items) || items.length === 0) {
     throw new AppError("items array tələb olunur", 400);
   }
@@ -383,10 +394,12 @@ export async function reorderHeroSlidesService(items) {
 
   const supabaseAdmin = getSupabaseAdmin();
 
-  const { data: existing, error: fetchError } = await supabaseAdmin
+  let existingReorderQuery = supabaseAdmin
     .from("hero_slides")
     .select("id")
     .in("id", ids);
+  if (clinicId) existingReorderQuery = existingReorderQuery.eq("clinic_id", clinicId);
+  const { data: existing, error: fetchError } = await existingReorderQuery;
 
   if (fetchError) {
     throw new AppError(fetchError.message || "Sliderlər tapıla bilmədi", 500);
@@ -403,12 +416,14 @@ export async function reorderHeroSlidesService(items) {
 
   const nowIso = new Date().toISOString();
   const results = await Promise.all(
-    normalized.map(({ id, order_index }) =>
-      supabaseAdmin
+    normalized.map(({ id, order_index }) => {
+      let u = supabaseAdmin
         .from("hero_slides")
         .update({ order_index, updated_at: nowIso })
-        .eq("id", id),
-    ),
+        .eq("id", id);
+      if (clinicId) u = u.eq("clinic_id", clinicId);
+      return u;
+    }),
   );
 
   const failed = results.find((r) => r.error);

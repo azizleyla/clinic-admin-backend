@@ -14,6 +14,16 @@ app.use(cors({ origin: true, credentials: true }))
 /** Base64 şəkil ilə JSON bloq əlavəsi üçün (Postman raw JSON) */
 app.use(express.json({ limit: "15mb" }))
 
+/**
+ * Multi-tenant: hər sorğunun hansı klinikaya aid olduğunu `X-Clinic` header-dən
+ * oxuyuruq. Bütün servislər `req.clinicId` ilə `clinic_id`-ə görə filtrləyir.
+ */
+app.use((req, _res, next) => {
+  req.clinicId =
+    String(req.headers["x-clinic"] || "").trim().toLowerCase() || "elmed"
+  next()
+})
+
 app.use("/auth", authRoutes)
 app.use("/doctors", doctorsRoutes)
 app.use("/users", usersRoutes)

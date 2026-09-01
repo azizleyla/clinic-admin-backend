@@ -35,7 +35,10 @@ function decodeBase64Image(image_base64) {
 export async function getBlogs(req, res) {
           try {
                     const listQuery = parseBlogsListQuery(req.query)
-                    const { items, fields } = await getBlogsService(listQuery)
+                    const { items, fields } = await getBlogsService({
+                              ...listQuery,
+                              clinicId: req.clinicId,
+                    })
                     AppSuccess.send(res, 200, items, {
                               message: "Bloqlar siyahısı uğurla gətirildi",
                               fields,
@@ -47,7 +50,7 @@ export async function getBlogs(req, res) {
 
 export async function getBlogById(req, res) {
           try {
-                    const result = await getBlogByIdService(req.params.id)
+                    const result = await getBlogByIdService(req.params.id, req.clinicId)
                     AppSuccess.send(res, 200, result, { message: "Bloq uğurla gətirildi" })
           } catch (e) {
                     respondHttpError(res, e)
@@ -67,6 +70,7 @@ export async function createBlog(req, res) {
                               tags,
                               published_at,
                               imageFile,
+                              clinicId: req.clinicId,
                     })
                     AppSuccess.send(res, 201, result, { message: "Bloq uğurla yaradıldı" })
           } catch (e) {
@@ -89,7 +93,7 @@ export async function editBlog(req, res) {
                               tags,
                               published_at,
                               imageFile,
-                    })
+                    }, req.clinicId)
                     AppSuccess.send(res, 200, result, { message: "Bloq uğurla yeniləndi" })
           } catch (e) {
                     respondHttpError(res, e)
@@ -99,7 +103,7 @@ export async function editBlog(req, res) {
 export async function deleteBlog(req, res) {
           try {
                     const { id } = req.params ?? {}
-                    const result = await deleteBlogService(id)
+                    const result = await deleteBlogService(id, req.clinicId)
                     AppSuccess.send(res, 200, result, { message: "Bloq uğurla silindi" })
           } catch (e) {
                     respondHttpError(res, e)

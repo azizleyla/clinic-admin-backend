@@ -73,6 +73,7 @@ export async function getDoctorsService({
   departmentId,
   branchId,
   name,
+  clinicId,
 } = {}) {
   const supabaseAdmin = getSupabaseAdmin();
 
@@ -83,6 +84,9 @@ export async function getDoctorsService({
     })
     .order("created_at", { ascending: false });
 
+  if (clinicId) {
+    q = q.eq("clinic_id", clinicId);
+  }
   if (Array.isArray(statuses) && statuses.length > 0) {
     q = q.in("status", statuses);
   }
@@ -143,7 +147,7 @@ export async function getDoctorsService({
 /**
  * Tək həkim — branch və department join ilə (detal səhifəsi üçün).
  */
-export async function getDoctorByIdService(id) {
+export async function getDoctorByIdService(id, clinicId) {
   const doctorId = Number(id);
   if (!Number.isFinite(doctorId) || doctorId < 1) {
     throw new AppError("Həkim id düzgün deyil", 400);
@@ -151,11 +155,16 @@ export async function getDoctorByIdService(id) {
 
   const supabaseAdmin = getSupabaseAdmin();
 
-  const { data: doctor, error } = await supabaseAdmin
+  let query = supabaseAdmin
     .from("doctors")
     .select("*, departments(id, title), branch:branches(*)")
-    .eq("id", doctorId)
-    .maybeSingle();
+    .eq("id", doctorId);
+
+  if (clinicId) {
+    query = query.eq("clinic_id", clinicId);
+  }
+
+  const { data: doctor, error } = await query.maybeSingle();
 
   if (error) {
     throw new AppError(error.message || "Həkim tapıla bilmədi", 500);
@@ -174,7 +183,7 @@ export async function getDoctorByIdService(id) {
 /**
  * Həkimin statusunu dəyişir (active | on_leave | inactive).
  */
-export async function updateDoctorStatusService(id, status) {
+export async function updateDoctorStatusService(id, status, clinicId) {
   const doctorId = Number(id);
   if (!Number.isFinite(doctorId) || doctorId < 1) {
     throw new AppError("Həkim id düzgün deyil", 400);
@@ -192,11 +201,13 @@ export async function updateDoctorStatusService(id, status) {
 
   const supabaseAdmin = getSupabaseAdmin();
 
-  const { data: existing, error: fetchError } = await supabaseAdmin
+  let existingQuery = supabaseAdmin
     .from("doctors")
     .select("id, status")
-    .eq("id", doctorId)
-    .maybeSingle();
+    .eq("id", doctorId);
+  if (clinicId) existingQuery = existingQuery.eq("clinic_id", clinicId);
+
+  const { data: existing, error: fetchError } = await existingQuery.maybeSingle();
 
   if (fetchError) {
     throw new AppError(fetchError.message || "Həkim tapıla bilmədi", 500);
@@ -209,10 +220,13 @@ export async function updateDoctorStatusService(id, status) {
     return existing;
   }
 
-  const { data: updated, error } = await supabaseAdmin
+  let updateQuery = supabaseAdmin
     .from("doctors")
     .update({ status: nextStatus })
-    .eq("id", doctorId)
+    .eq("id", doctorId);
+  if (clinicId) updateQuery = updateQuery.eq("clinic_id", clinicId);
+
+  const { data: updated, error } = await updateQuery
     .select("id, status")
     .single();
 

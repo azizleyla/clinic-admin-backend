@@ -30,7 +30,7 @@ export function parseBlogsListQuery(query = {}) {
   return { paginate: true, page, limit };
 }
 
-export async function getBlogsService({ page, limit, paginate } = {}) {
+export async function getBlogsService({ page, limit, paginate, clinicId } = {}) {
   const supabaseAdmin = getSupabaseAdmin();
 
   let q = supabaseAdmin
@@ -39,6 +39,9 @@ export async function getBlogsService({ page, limit, paginate } = {}) {
     .order("published_at", { ascending: false, nullsFirst: false })
     .order("created_at", { ascending: false });
 
+  if (clinicId) {
+    q = q.eq("clinic_id", clinicId);
+  }
   if (paginate) {
     const from = (page - 1) * limit;
     const to = from + limit - 1;
@@ -73,18 +76,19 @@ export async function getBlogsService({ page, limit, paginate } = {}) {
   };
 }
 
-export async function getBlogByIdService(id) {
+export async function getBlogByIdService(id, clinicId) {
   const supabaseAdmin = getSupabaseAdmin();
   const blogId = Number(id);
   if (!Number.isFinite(blogId)) {
     throw new AppError("Blog id düzgün deyil", 400);
   }
 
-  const { data: blog, error } = await supabaseAdmin
+  let query = supabaseAdmin
     .from("blogs")
     .select("*")
-    .eq("id", blogId)
-    .maybeSingle();
+    .eq("id", blogId);
+  if (clinicId) query = query.eq("clinic_id", clinicId);
+  const { data: blog, error } = await query.maybeSingle();
 
   if (error) {
     throw new AppError(error.message || "Bloq tapıla bilmədi", 500);
@@ -208,6 +212,7 @@ export async function createBlogService({
   imageBuffer,
   imageMime,
   imageOriginalName,
+  clinicId,
 }) {
   const supabaseAdmin = getSupabaseAdmin();
 
@@ -294,6 +299,7 @@ export async function createBlogService({
         : null,
     published_at: published_at ? new Date(published_at).toISOString() : null,
   };
+  if (clinicId) payload.clinic_id = clinicId;
 
   const { data: created, error } = await supabaseAdmin
     .from("blogs")
@@ -323,6 +329,7 @@ export async function editBlogService(
     imageMime,
     imageOriginalName,
   },
+  clinicId,
 ) {
   const supabaseAdmin = getSupabaseAdmin();
   const blogId = Number(id);
@@ -330,11 +337,12 @@ export async function editBlogService(
     throw new AppError("Blog id düzgün deyil", 400);
   }
 
-  const { data: existing, error: fetchError } = await supabaseAdmin
+  let existingQuery = supabaseAdmin
     .from("blogs")
     .select("*")
-    .eq("id", blogId)
-    .maybeSingle();
+    .eq("id", blogId);
+  if (clinicId) existingQuery = existingQuery.eq("clinic_id", clinicId);
+  const { data: existing, error: fetchError } = await existingQuery.maybeSingle();
 
   if (fetchError) {
     throw new AppError(fetchError.message || "Bloq tapıla bilmədi", 500);
@@ -427,12 +435,12 @@ export async function editBlogService(
     published_at: published_at ? new Date(published_at).toISOString() : null,
   };
 
-  const { data: updated, error } = await supabaseAdmin
+  let updateQuery = supabaseAdmin
     .from("blogs")
     .update(payload)
-    .eq("id", blogId)
-    .select("*")
-    .single();
+    .eq("id", blogId);
+  if (clinicId) updateQuery = updateQuery.eq("clinic_id", clinicId);
+  const { data: updated, error } = await updateQuery.select("*").single();
 
   if (error) {
     throw new AppError(error.message || "Bloq yenilənə bilmədi", 500);
@@ -441,18 +449,19 @@ export async function editBlogService(
   return updated;
 }
 
-export async function deleteBlogService(id) {
+export async function deleteBlogService(id, clinicId) {
   const supabaseAdmin = getSupabaseAdmin();
   const blogId = Number(id);
   if (!Number.isFinite(blogId)) {
     throw new AppError("Blog id düzgün deyil", 400);
   }
 
-  const { data: existing, error: fetchError } = await supabaseAdmin
+  let existingQuery = supabaseAdmin
     .from("blogs")
     .select("id, img_url")
-    .eq("id", blogId)
-    .maybeSingle();
+    .eq("id", blogId);
+  if (clinicId) existingQuery = existingQuery.eq("clinic_id", clinicId);
+  const { data: existing, error: fetchError } = await existingQuery.maybeSingle();
 
   if (fetchError) {
     throw new AppError(fetchError.message || "Bloq tapıla bilmədi", 500);
@@ -480,10 +489,9 @@ export async function deleteBlogService(id) {
     }
   }
 
-  const { error: deleteError } = await supabaseAdmin
-    .from("blogs")
-    .delete()
-    .eq("id", blogId);
+  let deleteQuery = supabaseAdmin.from("blogs").delete().eq("id", blogId);
+  if (clinicId) deleteQuery = deleteQuery.eq("clinic_id", clinicId);
+  const { error: deleteError } = await deleteQuery;
 
   if (deleteError) {
     throw new AppError(deleteError.message || "Bloq silinə bilmədi", 500);

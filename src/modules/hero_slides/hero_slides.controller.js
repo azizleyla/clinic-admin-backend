@@ -11,7 +11,10 @@ import {
 
 export async function getHeroSlides(req, res) {
   try {
-    const items = await getHeroSlidesService(req.query);
+    const items = await getHeroSlidesService({
+      ...req.query,
+      clinicId: req.clinicId,
+    });
     AppSuccess.send(res, 200, items, {
       message: "Sliderlər siyahısı gətirildi",
     });
@@ -22,7 +25,7 @@ export async function getHeroSlides(req, res) {
 export async function reorderHeroSlides(req, res) {
   try {
     const items = Array.isArray(req.body) ? req.body : req.body?.items;
-    const result = await reorderHeroSlidesService(items);
+    const result = await reorderHeroSlidesService(items, req.clinicId);
     AppSuccess.send(res, 200, result, { message: "Slider sıralaması yeniləndi" });
   } catch (e) {
     respondHttpError(res, e);
@@ -31,7 +34,7 @@ export async function reorderHeroSlides(req, res) {
 
 export async function getHeroSlideById(req, res) {
   try {
-    const result = await getHeroSlideByIdService(req.params.id);
+    const result = await getHeroSlideByIdService(req.params.id, req.clinicId);
     AppSuccess.send(res, 200, result, { message: "Slider gətirildi" });
   } catch (e) {
     respondHttpError(res, e);
@@ -47,6 +50,7 @@ export async function createHeroSlide(req, res) {
       description,
       is_active,
       imageFile,
+      clinicId: req.clinicId,
     });
     AppSuccess.send(res, 201, result, { message: "Slider yaradıldı" });
   } catch (e) {
@@ -64,7 +68,7 @@ export async function editHeroSlide(req, res) {
       description,
       is_active,
       imageFile,
-    });
+    }, req.clinicId);
     AppSuccess.send(res, 200, result, { message: "Slider yeniləndi" });
   } catch (e) {
     respondHttpError(res, e);
@@ -74,7 +78,7 @@ export async function editHeroSlide(req, res) {
 export async function deleteHeroSlide(req, res) {
   try {
     const { id } = req.params ?? {};
-    const result = await deleteHeroSlideService(id);
+    const result = await deleteHeroSlideService(id, req.clinicId);
     AppSuccess.send(res, 200, result, { message: "Slider silindi" });
   } catch (e) {
     respondHttpError(res, e);

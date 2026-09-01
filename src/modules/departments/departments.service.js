@@ -5,30 +5,33 @@ import {
   isValidDepartmentIcon,
 } from "./departments.constants.js";
 
-export async function getDepartmentsService() {
+export async function getDepartmentsService(clinicId) {
   const supabaseAdmin = getSupabaseAdmin();
-  const { data: departments, error } = await supabaseAdmin
+  let query = supabaseAdmin
     .from("departments")
     .select("*")
     .order("id", { ascending: true });
+  if (clinicId) query = query.eq("clinic_id", clinicId);
+  const { data: departments, error } = await query;
   if (error) {
     throw new AppError(error.message || "Şöbə siyahısı alına bilmədi", 500);
   }
   return departments ?? [];
 }
 
-export async function getDepartmentByIdService(id) {
+export async function getDepartmentByIdService(id, clinicId) {
   const departmentId = Number(id);
   if (!Number.isFinite(departmentId) || departmentId < 1) {
     throw new AppError("Şöbə id düzgün deyil", 400);
   }
 
   const supabaseAdmin = getSupabaseAdmin();
-  const { data: department, error } = await supabaseAdmin
+  let query = supabaseAdmin
     .from("departments")
     .select("*")
-    .eq("id", departmentId)
-    .maybeSingle();
+    .eq("id", departmentId);
+  if (clinicId) query = query.eq("clinic_id", clinicId);
+  const { data: department, error } = await query.maybeSingle();
 
   if (error) {
     throw new AppError(error.message || "Şöbə tapıla bilmədi", 500);
@@ -158,10 +161,12 @@ export async function createDepartmentService({
   content,
   icon_name,
   imageFile,
+  clinicId,
 }) {
   const supabaseAdmin = getSupabaseAdmin();
 
   const payload = buildDepartmentPayload({ title, desc, content, icon_name });
+  if (clinicId) payload.clinic_id = clinicId;
 
   const imgUrl = await uploadDepartmentImage(supabaseAdmin, imageFile);
   if (imgUrl) {
@@ -184,6 +189,7 @@ export async function createDepartmentService({
 export async function editDepartmentService(
   id,
   { title, desc, content, icon_name, imageFile },
+  clinicId,
 ) {
   const supabaseAdmin = getSupabaseAdmin();
   const departmentId = Number(id);
@@ -191,11 +197,12 @@ export async function editDepartmentService(
     throw new AppError("Şöbə id düzgün deyil", 400);
   }
 
-  const { data: existing, error: fetchError } = await supabaseAdmin
+  let existingQuery = supabaseAdmin
     .from("departments")
     .select("*")
-    .eq("id", departmentId)
-    .maybeSingle();
+    .eq("id", departmentId);
+  if (clinicId) existingQuery = existingQuery.eq("clinic_id", clinicId);
+  const { data: existing, error: fetchError } = await existingQuery.maybeSingle();
 
   if (fetchError) {
     throw new AppError(fetchError.message || "Şöbə tapıla bilmədi", 500);
@@ -211,12 +218,12 @@ export async function editDepartmentService(
     payload.img_url = imgUrl;
   }
 
-  const { data: updated, error } = await supabaseAdmin
+  let updateQuery = supabaseAdmin
     .from("departments")
     .update(payload)
-    .eq("id", departmentId)
-    .select("*")
-    .single();
+    .eq("id", departmentId);
+  if (clinicId) updateQuery = updateQuery.eq("clinic_id", clinicId);
+  const { data: updated, error } = await updateQuery.select("*").single();
 
   if (error) {
     throw new AppError(error.message || "Şöbə yenilənə bilmədi", 500);
@@ -225,18 +232,19 @@ export async function editDepartmentService(
   return updated;
 }
 
-export async function deleteDepartmentService(id) {
+export async function deleteDepartmentService(id, clinicId) {
   const supabaseAdmin = getSupabaseAdmin();
   const departmentId = Number(id);
   if (!Number.isFinite(departmentId) || departmentId < 1) {
     throw new AppError("Şöbə id düzgün deyil", 400);
   }
 
-  const { data: existing, error: fetchError } = await supabaseAdmin
+  let existingQuery = supabaseAdmin
     .from("departments")
     .select("id, img_url")
-    .eq("id", departmentId)
-    .maybeSingle();
+    .eq("id", departmentId);
+  if (clinicId) existingQuery = existingQuery.eq("clinic_id", clinicId);
+  const { data: existing, error: fetchError } = await existingQuery.maybeSingle();
 
   if (fetchError) {
     throw new AppError(fetchError.message || "Şöbə tapıla bilmədi", 500);
@@ -262,10 +270,12 @@ export async function deleteDepartmentService(id) {
     }
   }
 
-  const { error: deleteError } = await supabaseAdmin
+  let deleteQuery = supabaseAdmin
     .from("departments")
     .delete()
     .eq("id", departmentId);
+  if (clinicId) deleteQuery = deleteQuery.eq("clinic_id", clinicId);
+  const { error: deleteError } = await deleteQuery;
 
   if (deleteError) {
     throw new AppError(deleteError.message || "Şöbə silinə bilmədi", 500);

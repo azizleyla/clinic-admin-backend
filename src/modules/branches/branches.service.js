@@ -1,11 +1,11 @@
 import { AppError } from "../../common/AppError.js";
 import getSupabaseAdmin from "../../config/supabaseAdmin.js";
 
-export async function getBranchesService() {
+export async function getBranchesService(clinicId) {
   const supabaseAdmin = getSupabaseAdmin();
-  const { data: branches, error } = await supabaseAdmin
-    .from("branches")
-    .select("*");
+  let query = supabaseAdmin.from("branches").select("*");
+  if (clinicId) query = query.eq("clinic_id", clinicId);
+  const { data: branches, error } = await query;
 
   if (error) {
     throw new AppError(error.message || "Filial siyahısı alına bilmədi", 500);
@@ -14,18 +14,19 @@ export async function getBranchesService() {
   return branches ?? [];
 }
 
-export async function getBranchByIdService(id) {
+export async function getBranchByIdService(id, clinicId) {
   const branchId = Number(id);
   if (!Number.isFinite(branchId) || branchId < 1) {
     throw new AppError("Filial id düzgün deyil", 400);
   }
 
   const supabaseAdmin = getSupabaseAdmin();
-  const { data: branch, error } = await supabaseAdmin
+  let query = supabaseAdmin
     .from("branches")
     .select("*")
-    .eq("id", branchId)
-    .maybeSingle();
+    .eq("id", branchId);
+  if (clinicId) query = query.eq("clinic_id", clinicId);
+  const { data: branch, error } = await query.maybeSingle();
 
   if (error) {
     throw new AppError(error.message || "Filial tapıla bilmədi", 500);

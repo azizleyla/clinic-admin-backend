@@ -10,7 +10,7 @@ import {
 
 export async function getDepartments(req, res) {
           try {
-                    const result = await getDepartmentsService()
+                    const result = await getDepartmentsService(req.clinicId)
                     AppSuccess.send(res, 200, result, { message: "Şöbələr  siyahısı uğurla gətirildi" })
           } catch (e) {
                     respondHttpError(res, e)
@@ -20,7 +20,7 @@ export async function getDepartments(req, res) {
 export async function getDepartmentById(req, res) {
           try {
                     const { id } = req.params ?? {}
-                    const result = await getDepartmentByIdService(id)
+                    const result = await getDepartmentByIdService(id, req.clinicId)
                     AppSuccess.send(res, 200, result, { message: "Şöbə uğurla gətirildi" })
           } catch (e) {
                     respondHttpError(res, e)
@@ -36,6 +36,7 @@ export async function createDepartment(req, res) {
                               content,
                               icon_name,
                               imageFile: req.file,
+                              clinicId: req.clinicId,
                     })
                     AppSuccess.send(res, 201, result, { message: "Şöbə uğurla yaradıldı" })
           } catch (e) {
@@ -53,7 +54,7 @@ export async function editDepartment(req, res) {
                               content,
                               icon_name,
                               imageFile: req.file,
-                    })
+                    }, req.clinicId)
                     AppSuccess.send(res, 200, result, { message: "Şöbə uğurla yeniləndi" })
           } catch (e) {
                     respondHttpError(res, e)
@@ -63,7 +64,7 @@ export async function editDepartment(req, res) {
 export async function deleteDepartment(req, res) {
           try {
                     const { id } = req.params ?? {}
-                    const result = await deleteDepartmentService(id)
+                    const result = await deleteDepartmentService(id, req.clinicId)
                     AppSuccess.send(res, 200, result, { message: "Şöbə uğurla silindi" })
           } catch (e) {
                     respondHttpError(res, e)
