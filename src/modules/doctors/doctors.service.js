@@ -28,14 +28,26 @@ function parseStatusFilter(rawStatus) {
   return valid.length > 0 ? valid : PUBLIC_VISIBLE_STATUSES;
 }
 
+function parseIdFilter(value) {
+  const raw = String(value ?? "").trim();
+  if (!raw) return null;
+  const n = parseInt(raw, 10);
+  return Number.isFinite(n) && n > 0 ? n : null;
+}
+
 export function parseDoctorsListQuery(query = {}) {
   const statuses = parseStatusFilter(query.status);
+  const departmentId = parseIdFilter(query.department_id);
+  const branchId = parseIdFilter(query.branch_id);
+  const name = String(query.name ?? "").trim();
+
+  const filters = { departmentId, branchId, name };
 
   const hasPage = query.page != null && String(query.page).trim() !== "";
   const hasLimit = query.limit != null && String(query.limit).trim() !== "";
 
   if (!hasPage && !hasLimit) {
-    return { paginate: false, statuses };
+    return { paginate: false, statuses, ...filters };
   }
 
   const limit = Math.min(
@@ -46,7 +58,7 @@ export function parseDoctorsListQuery(query = {}) {
     ? parsePositiveInt(query.page, DEFAULT_PAGE)
     : DEFAULT_PAGE;
 
-  return { paginate: true, page, limit, statuses };
+  return { paginate: true, page, limit, statuses, ...filters };
 }
 
 /**
@@ -58,18 +70,30 @@ export async function getDoctorsService({
   limit,
   paginate,
   statuses,
+  departmentId,
+  branchId,
+  name,
 } = {}) {
   const supabaseAdmin = getSupabaseAdmin();
 
   let q = supabaseAdmin
     .from("doctors")
-    .select("*, departments(id, title)", {
+    .select("*, departments(id, title), branch:branches(*)", {
       count: paginate ? "exact" : undefined,
     })
     .order("created_at", { ascending: false });
 
   if (Array.isArray(statuses) && statuses.length > 0) {
     q = q.in("status", statuses);
+  }
+  if (departmentId) {
+    q = q.eq("department_id", departmentId);
+  }
+  if (branchId) {
+    q = q.eq("branch_id", branchId);
+  }
+  if (name) {
+    q = q.ilike("name", `%${name}%`);
   }
 
   if (paginate) {
@@ -107,10 +131,43 @@ export async function getDoctorsService({
 
   return {
     items,
-    currentPage: page,
-    totalElements,
-    totalPages,
-    hasNextPage: page < totalPages,
+    fields: {
+      currentPage: page,
+      totalElements,
+      totalPages,
+      hasNextPage: page < totalPages,
+    },
+  };
+}
+
+/**
+ * Tək həkim — branch və department join ilə (detal səhifəsi üçün).
+ */
+export async function getDoctorByIdService(id) {
+  const doctorId = Number(id);
+  if (!Number.isFinite(doctorId) || doctorId < 1) {
+    throw new AppError("Həkim id düzgün deyil", 400);
+  }
+
+  const supabaseAdmin = getSupabaseAdmin();
+
+  const { data: doctor, error } = await supabaseAdmin
+    .from("doctors")
+    .select("*, departments(id, title), branch:branches(*)")
+    .eq("id", doctorId)
+    .maybeSingle();
+
+  if (error) {
+    throw new AppError(error.message || "Həkim tapıla bilmədi", 500);
+  }
+  if (!doctor) {
+    throw new AppError("Həkim tapılmadı", 404);
+  }
+
+  const { departments, ...rest } = doctor;
+  return {
+    ...rest,
+    department: departments?.title ?? null,
   };
 }
 

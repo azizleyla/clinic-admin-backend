@@ -1,6 +1,7 @@
 import { AppSuccess } from "../../common/AppSuccess.js"
 import { respondHttpError } from "../../common/respondHttpError.js"
 import {
+  getDoctorByIdService,
   getDoctorsService,
   parseDoctorsListQuery,
   updateDoctorStatusService,
@@ -14,6 +15,16 @@ export async function getDoctors(req, res) {
       message: "Həkim siyahısı gətirildi",
       fields,
     })
+  } catch (e) {
+    respondHttpError(res, e)
+  }
+}
+
+export async function getDoctorById(req, res) {
+  try {
+    const { id } = req.params ?? {}
+    const doctor = await getDoctorByIdService(id)
+    AppSuccess.send(res, 200, doctor, { message: "Həkim gətirildi" })
   } catch (e) {
     respondHttpError(res, e)
   }

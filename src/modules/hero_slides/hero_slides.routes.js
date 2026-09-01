@@ -2,12 +2,13 @@ import express from "express"
 import multer from "multer"
 import { requireAuth } from "../../middleware/requireAuth.js"
 import {
-  createDepartment,
-  deleteDepartment,
-  editDepartment,
-  getDepartmentById,
-  getDepartments,
-} from "./departments.controller.js"
+  createHeroSlide,
+  deleteHeroSlide,
+  editHeroSlide,
+  getHeroSlideById,
+  getHeroSlides,
+  reorderHeroSlides,
+} from "./hero_slides.controller.js"
 
 const router = express.Router()
 
@@ -26,10 +27,12 @@ const upload = multer({
   },
 })
 
-router.get("/", getDepartments)
-router.get("/:id", getDepartmentById)
-router.post("/add", requireAuth, upload.single("image"), createDepartment)
-router.put("/edit/:id", requireAuth, upload.single("image"), editDepartment)
-router.delete("/delete/:id", requireAuth, deleteDepartment)
+router.get("/", getHeroSlides)
+router.get("/:id", getHeroSlideById)
+router.post("/add", requireAuth, upload.single("image"), createHeroSlide)
+router.put("/edit/:id", requireAuth, upload.single("image"), editHeroSlide)
+router.delete("/delete/:id", requireAuth, deleteHeroSlide)
+router.put("/reorder", requireAuth, reorderHeroSlides);
+
 
 export default router

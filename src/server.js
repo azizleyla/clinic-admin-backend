@@ -4,7 +4,9 @@ import authRoutes from "./modules/auth/auth.routes.js"
 import doctorsRoutes from "./modules/doctors/doctors.routes.js"
 import usersRoutes from "./modules/users/users.routes.js"
 import departmentsRoutes from "./modules/departments/departments.route.js"
+import branchesRoutes from "./modules/branches/branches.routes.js"
 import blogsRoutes from "./modules/blogs/blogs.route.js"
+import heroSlidesRoutes from "./modules/hero_slides/hero_slides.routes.js"
 
 const app = express()
 
@@ -16,7 +18,9 @@ app.use("/auth", authRoutes)
 app.use("/doctors", doctorsRoutes)
 app.use("/users", usersRoutes)
 app.use('/departments', departmentsRoutes)
+app.use('/branches', branchesRoutes)
 app.use('/blogs', blogsRoutes)
+app.use('/hero-slides', heroSlidesRoutes)
 
 /** Multipart / multer parse və ümumi xətalar — HTML `<pre>` əvəzinə JSON */
 app.use((err, req, res, next) => {
