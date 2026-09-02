@@ -7,6 +7,7 @@ import departmentsRoutes from "./modules/departments/departments.route.js"
 import branchesRoutes from "./modules/branches/branches.routes.js"
 import blogsRoutes from "./modules/blogs/blogs.route.js"
 import heroSlidesRoutes from "./modules/hero_slides/hero_slides.routes.js"
+import aiRoutes from "./modules/ai/ai.routes.js"
 
 const app = express()
 
@@ -21,6 +22,7 @@ app.use('/departments', departmentsRoutes)
 app.use('/branches', branchesRoutes)
 app.use('/blogs', blogsRoutes)
 app.use('/hero-slides', heroSlidesRoutes)
+app.use('/ai', aiRoutes)
 
 /** Multipart / multer parse və ümumi xətalar — HTML `<pre>` əvəzinə JSON */
 app.use((err, req, res, next) => {
